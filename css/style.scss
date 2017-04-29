@@ -31,6 +31,14 @@ table {
 	}
 }
 
+input[type="checkbox"] {
+	//-webkit-appearance: checkbox !important;
+	//-moz-appearance: checkbox !important;
+	//-ms-appearance: checkbox !important;
+	//-o-appearance: checkbox !important;
+	//appearance: checkbox !important;
+}
+
 form {
 	overflow: hidden;
 	fieldset {
@@ -51,6 +59,13 @@ form {
 		font-size: 14px;
 		margin-right: 25px;
 	}
+	//input[type="checkbox"] {
+	//	width: 20px;
+	//	height: 20px;
+	//	text-align: left;
+	//	border: 0;
+	//	border-radius: 0;
+	//}
 }
 
 .button {

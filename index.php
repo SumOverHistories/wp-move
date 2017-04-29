@@ -63,7 +63,7 @@ wpmove::init();
 					<th>Table</th>
 					<th>Number of Changes</th>
 				</tr>
-				<? foreach (wpmove::$aAffectedRows as $sTable => $sChanges) : ?>
+				<?php foreach (wpmove::$aAffectedRows as $sTable => $sChanges) : ?>
 					<tr>
 						<td><?php echo $sTable ?></td>
 						<td><?php echo $sChanges ?></td>

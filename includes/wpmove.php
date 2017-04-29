@@ -10,6 +10,7 @@ class wpmove {
 	private static $sDB_NAME;
 	private static $sTablePrefix;
 	private static $bIsMultisite = false;
+	private static $sWPConfig;
 	// public variables
 	public static $aErrors = array();
 	public static $aBlogs = array();
@@ -35,16 +36,16 @@ class wpmove {
 		}
 
 		// Load the wp-config.php
-		$sWP_Config = file_get_contents(self::$sPathToConfig, null, null, 0);
+		self::$sWPConfig = file_get_contents(self::$sPathToConfig, null, null, 0);
 
 		// Read content from wp-config.php
-		self::$sDB_HOST = self::extractString($sWP_Config, "define('DB_HOST', '", "');");
-		self::$sDB_USER = self::extractString($sWP_Config, "define('DB_USER', '", "');");
-		self::$sDB_PASSWORD = self::extractString($sWP_Config, "define('DB_PASSWORD', '", "');");
-		self::$sDB_NAME = self::extractString($sWP_Config, "define('DB_NAME', '", "');");
-		self::$sTablePrefix = self::extractString($sWP_Config, "table_prefix  = '", "';");
+		self::$sDB_HOST = self::extractString("'DB_HOST'");
+		self::$sDB_USER = self::extractString("'DB_USER'");
+		self::$sDB_PASSWORD = self::extractString("'DB_PASSWORD'");
+		self::$sDB_NAME = self::extractString("'DB_NAME'");
+		self::$sTablePrefix = self::extractString("table_prefix");
 
-		// Check if all necessary variables were found in the config.php.
+		// Check if all neccessary variables were found in the config.php.
 		self::checkVariables();
 
 		if (empty(self::$aErrors)) {
@@ -114,7 +115,7 @@ class wpmove {
 
 			self::$iExecTime = 0;
 			$iTimePre = microtime(true);
-
+			$sOldDomain = '';
 			foreach (self::$aBlogs as $sTablePrefixID => $oBlog) {
 				$sOldDomain = $oBlog['url'];
 				$sTablePrefix = self::$sTablePrefix;
@@ -137,6 +138,7 @@ class wpmove {
 
 				$sOriginalURL = $sOriginalHttp . $sOldDomain;
 				$sNewURL = $sNewHttp . self::$sNewDomain;
+
 				$sTable = 'options';
 				self::$oConnection->query("UPDATE " . $sTablePrefix . $sTable . " SET option_value = replace(option_value, '" . $sOriginalURL . "', '" . $sNewURL . "') WHERE option_name = 'home' OR option_name = 'siteurl'");
 				self::$aAffectedRows[$sTablePrefix . $sTable] = self::$oConnection->affected_rows;
@@ -156,27 +158,27 @@ class wpmove {
 
 			if ($sBlogsCount > 1 && self::$bIsMultisite === true) {
 				$sTable = 'blogs';
-				self::$oConnection->query("UPDATE " . self::$sTablePrefix . $sTable . " SET domain = replace(domain,'" . self::removeWWW(self::$aBlogs[1]['url']) . "', '" . self::removeWWW(self::$sNewDomain) . "');");
+				self::$oConnection->query("UPDATE " . self::$sTablePrefix . $sTable . " SET domain = replace(domain,'" . self::$aBlogs[1]['url'] . "', '" . self::$sNewDomain . "');");
 				self::$aAffectedRows[self::$sTablePrefix . $sTable] = self::$oConnection->affected_rows;
 			}
 
 			$iTimePost = microtime(true);
 			self::$iExecTime = round($iTimePost - $iTimePre, 2);
+			self::updateWPConfig($sOldDomain, self::$sNewDomain);
 		}
 
 		// Update blog information for display
 		self::getBlogs();
 	}
 
-	static private function extractString($string, $start, $end) {
-		$string = " " . $string;
-		$ini = strpos($string, $start);
-		if ($ini == 0)
-			return "";
-		$ini += strlen($start);
-		$len = strpos($string, $end, $ini) - $ini;
+	static private function extractString($sStart) {
+		preg_match("/" . $sStart . ".+'(.+)'/i", self::$sWPConfig, $aMatches);
 
-		return substr($string, $ini, $len);
+		if ($aMatches) {
+			return $aMatches[1];
+		}
+
+		return false;
 	}
 
 	static private function getBlogs() {
@@ -215,11 +217,13 @@ class wpmove {
 		return $aMatches[1];
 	}
 
-	static private function removeWWW($sDomain) {
-		if (substr($sDomain, 0, 4) === 'www.') {
-			return substr($sDomain, 4);
+	static private function updateWPConfig($sOriginalURL, $sNewURL) {
+		if ($sOriginalURL == $sNewURL || empty($sOriginalURL) || empty($sNewURL)) {
+			return;
 		}
 
-		return $sDomain;
+		$sSearch = "define('DOMAIN_CURRENT_SITE', '" . $sOriginalURL . "');";
+		$sReplace = "define('DOMAIN_CURRENT_SITE', '" . $sNewURL . "');";
+		file_put_contents(self::$sPathToConfig, str_ireplace($sSearch, $sReplace, self::$sWPConfig));
 	}
 }
